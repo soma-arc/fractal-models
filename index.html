@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>フラクタルモデル</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      gap: 16px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      letter-spacing: 0.05em;
+      color: #a0cfff;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    #controls {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      min-width: 130px;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+
+    select, input[type="range"], input[type="color"], input[type="file"] {
+      flex: 1;
+      min-width: 0;
+      background: #0f3460;
+      color: #e0e0e0;
+      border: 1px solid #1a4a80;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 0.9rem;
+    }
+
+    input[type="range"] {
+      padding: 0;
+      accent-color: #4a9eff;
+    }
+
+    input[type="color"] {
+      height: 32px;
+      padding: 2px;
+      cursor: pointer;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 16px;
+    }
+
+    .radio-group label {
+      min-width: unset;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      color: #e0e0e0;
+    }
+
+    #depth-value {
+      min-width: 24px;
+      text-align: right;
+      font-weight: bold;
+      color: #4a9eff;
+    }
+
+    .pbr-value {
+      min-width: 36px;
+      text-align: right;
+      font-size: 0.85rem;
+      color: #4a9eff;
+    }
+
+    #warning-msg {
+      color: #ffaa44;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    #canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 800px;
+      align-self: center;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    #canvas2d, #canvas3d {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #canvas3d { display: none; }
+
+    #export-btn {
+      align-self: flex-end;
+      background: #0f3460;
+      color: #a0cfff;
+      border: 1px solid #1a4a80;
+      border-radius: 6px;
+      padding: 8px 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #export-btn:hover { background: #1a4a80; }
+    #export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #error-msg {
+      color: #ff6b6b;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    #webgl-lost-msg {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      color: #ff6b6b;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 1rem;
+      padding: 24px;
+    }
+  </style>
+</head>
+<body>
+  <h1>フラクタルモデル</h1>
+  <div id="app">
+    <div id="controls">
+      <!-- フラクタル選択 -->
+      <div class="control-row">
+        <label for="fractal-select">フラクタル</label>
+        <select id="fractal-select">
+          <option value="sierpinski2d">シェルピンスキーのギャスケット（2D）</option>
+          <option value="koch2d">コッホ曲線（2D）</option>
+          <option value="sierpinski3d">シェルピンスキーの四面体（3D）</option>
+          <option value="menger">メンガースポンジ（3D）</option>
+          <option value="koch3d">コッホ曲線 三次元版（3D）</option>
+        </select>
+      </div>
+
+      <!-- 再帰深さ -->
+      <div class="control-row">
+        <label for="depth-slider">再帰の深さ</label>
+        <input type="range" id="depth-slider" min="0" max="10" value="4" step="1" />
+        <span id="depth-value">4</span>
+      </div>
+      <div id="warning-msg">⚠ 深さが大きいとブラウザがフリーズする可能性があります</div>
+
+      <!-- 色モード -->
+      <div class="control-row">
+        <label>色モード</label>
+        <div class="radio-group">
+          <label><input type="radio" name="color-mode" value="solid" checked /> 単色</label>
+          <label><input type="radio" name="color-mode" value="gradient" /> グラデーション</label>
+          <label id="texture-radio-label"><input type="radio" name="color-mode" value="texture" /> テクスチャ</label>
+        </div>
+      </div>
+
+      <!-- 単色カラー -->
+      <div class="control-row" id="solid-row">
+        <label for="solid-color">カラー</label>
+        <input type="color" id="solid-color" value="#3a7bd5" />
+      </div>
+
+      <!-- グラデーション -->
+      <div class="control-row" id="gradient-row" style="display:none">
+        <label for="grad-start">開始色</label>
+        <input type="color" id="grad-start" value="#3a7bd5" />
+        <label for="grad-end">終了色</label>
+        <input type="color" id="grad-end" value="#f7971e" />
+        <label for="grad-dir">方向</label>
+        <select id="grad-dir">
+          <option value="depth">深さ基準</option>
+          <option value="vertical">上下</option>
+          <option value="horizontal">左右</option>
+        </select>
+      </div>
+
+      <!-- テクスチャ -->
+      <div class="control-row" id="texture-row" style="display:none">
+        <label for="texture-file">画像ファイル</label>
+        <input type="file" id="texture-file" accept="image/png,image/jpeg" />
+      </div>
+      <div id="error-msg"></div>
+
+      <!-- PBR パラメータ（3D のみ） -->
+      <div id="pbr-section" style="display:none">
+        <hr style="border-color:#0f3460; margin: 4px 0;" />
+        <div class="control-row">
+          <label for="pbr-metalness">Metalness</label>
+          <input type="range" id="pbr-metalness" min="0" max="1" step="0.01" value="0.3" />
+          <span class="pbr-value" id="pbr-metalness-val">0.30</span>
+        </div>
+        <div class="control-row">
+          <label for="pbr-roughness">Roughness</label>
+          <input type="range" id="pbr-roughness" min="0" max="1" step="0.01" value="0.5" />
+          <span class="pbr-value" id="pbr-roughness-val">0.50</span>
+        </div>
+        <div class="control-row">
+          <label for="pbr-clearcoat">Clearcoat</label>
+          <input type="range" id="pbr-clearcoat" min="0" max="1" step="0.01" value="0" />
+          <span class="pbr-value" id="pbr-clearcoat-val">0.00</span>
+        </div>
+        <div class="control-row">
+          <label for="pbr-clearcoat-rough">CC Roughness</label>
+          <input type="range" id="pbr-clearcoat-rough" min="0" max="1" step="0.01" value="0.1" />
+          <span class="pbr-value" id="pbr-clearcoat-rough-val">0.10</span>
+        </div>
+        <div class="control-row">
+          <label for="pbr-iridescence">Iridescence</label>
+          <input type="range" id="pbr-iridescence" min="0" max="1" step="0.01" value="0" />
+          <span class="pbr-value" id="pbr-iridescence-val">0.00</span>
+        </div>
+        <div class="control-row">
+          <label for="pbr-light">Light</label>
+          <input type="range" id="pbr-light" min="0" max="5" step="0.05" value="1.2" />
+          <span class="pbr-value" id="pbr-light-val">1.20</span>
+        </div>
+        <div class="control-row">
+          <label for="pbr-wireframe">Wireframe</label>
+          <input type="checkbox" id="pbr-wireframe" style="flex:none; width:18px; height:18px; accent-color:#4a9eff;" />
+        </div>
+      </div>
+    </div>
+
+    <!-- キャンバス -->
+    <div id="canvas-container">
+      <canvas id="canvas2d" width="800" height="800"></canvas>
+      <canvas id="canvas3d" width="800" height="800"></canvas>
+      <div id="webgl-lost-msg">WebGL コンテキストが失われました。<br>ページを再読み込みしてください。</div>
+    </div>
+
+    <button id="export-btn">PNG 書き出し ↓</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
