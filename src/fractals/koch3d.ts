@@ -116,7 +116,7 @@ function recurse(
 export const koch3d: Fractal3D = {
   id: 'koch3d',
   label: 'コッホ曲線 三次元版（3D）',
-  maxDepth: 8,
+  maxDepth: 10,
 
   build(params: FractalParams): Fractal3DGeometry {
     const bounds = { minY: -0.5, maxY: 1, minX: -s3, maxX: s3 };

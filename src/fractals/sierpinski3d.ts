@@ -104,7 +104,7 @@ function recurse(
 export const sierpinski3d: Fractal3D = {
   id: 'sierpinski3d',
   label: 'シェルピンスキーの四面体（3D）',
-  maxDepth: 8,
+  maxDepth: 10,
 
   build(params: FractalParams): Fractal3DGeometry {
     const s = Math.sqrt(3);

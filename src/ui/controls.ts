@@ -1,4 +1,4 @@
-import type { ColorMode, ColorParams, FractalParams, GradientDirection, PbrParams } from '../types/fractal.ts';
+import type { ColorMode, ColorParams, FractalParams, GradientDirection, PbrParams, PresetV1 } from '../types/fractal.ts';
 
 export interface UIState {
   fractalId: string;
@@ -6,16 +6,18 @@ export interface UIState {
 }
 
 export interface UICallbacks {
-  onChange: (state: UIState) => void;
+  onChange: (this: Controls, state: UIState) => void;
   onExport: () => void;
+  onPresetSave: () => void;
+  getCameraHeight: () => number;
 }
 
 const FRACTAL_MAX_DEPTHS: Record<string, number> = {
   sierpinski2d: 10,
   koch2d: 20,
-  sierpinski3d: 8,
-  menger: 4,
-  koch3d: 8,
+  sierpinski3d: 10,
+  menger: 10,
+  koch3d: 10,
 };
 
 const FRACTAL_WARN_DEPTHS: Record<string, number> = {
@@ -51,6 +53,7 @@ export class Controls {
   private textureFile: HTMLInputElement;
   private errorMsg: HTMLDivElement;
   private exportBtn: HTMLButtonElement;
+  private presetBtn: HTMLButtonElement;
 
   // PBR
   private pbrSection: HTMLDivElement;
@@ -66,7 +69,21 @@ export class Controls {
   private pbrIridescenceVal: HTMLSpanElement;
   private pbrLight: HTMLInputElement;
   private pbrLightVal: HTMLSpanElement;
+  private pbrLightAz: HTMLInputElement;
+  private pbrLightAzVal: HTMLSpanElement;
+  private pbrLightEl: HTMLInputElement;
+  private pbrLightElVal: HTMLSpanElement;
+  private pbrEnv: HTMLInputElement;
+  private pbrEnvVal: HTMLSpanElement;
+  private pbrFov: HTMLInputElement;
+  private pbrFovVal: HTMLSpanElement;
   private pbrWireframe: HTMLInputElement;
+  private pbrOrtho: HTMLInputElement;
+  private pbrVerticalCorrection: HTMLInputElement;
+  private pbrCameraHeight: HTMLInputElement;
+  private pbrCameraHeightVal: HTMLSpanElement;
+  private pbrLensShiftY: HTMLInputElement;
+  private pbrLensShiftYVal: HTMLSpanElement;
 
   private currentTextureImage: HTMLImageElement | null = null;
   private callbacks: UICallbacks;
@@ -90,6 +107,7 @@ export class Controls {
     this.textureFile = document.getElementById('texture-file') as HTMLInputElement;
     this.errorMsg = document.getElementById('error-msg') as HTMLDivElement;
     this.exportBtn = document.getElementById('export-btn') as HTMLButtonElement;
+    this.presetBtn = document.getElementById('preset-btn') as HTMLButtonElement;
 
     this.pbrSection = document.getElementById('pbr-section') as HTMLDivElement;
     this.pbrMetalness = document.getElementById('pbr-metalness') as HTMLInputElement;
@@ -104,7 +122,21 @@ export class Controls {
     this.pbrIridescenceVal = document.getElementById('pbr-iridescence-val') as HTMLSpanElement;
     this.pbrLight = document.getElementById('pbr-light') as HTMLInputElement;
     this.pbrLightVal = document.getElementById('pbr-light-val') as HTMLSpanElement;
+    this.pbrLightAz = document.getElementById('pbr-light-az') as HTMLInputElement;
+    this.pbrLightAzVal = document.getElementById('pbr-light-az-val') as HTMLSpanElement;
+    this.pbrLightEl = document.getElementById('pbr-light-el') as HTMLInputElement;
+    this.pbrLightElVal = document.getElementById('pbr-light-el-val') as HTMLSpanElement;
+    this.pbrEnv = document.getElementById('pbr-env') as HTMLInputElement;
+    this.pbrEnvVal = document.getElementById('pbr-env-val') as HTMLSpanElement;
+    this.pbrFov = document.getElementById('pbr-fov') as HTMLInputElement;
+    this.pbrFovVal = document.getElementById('pbr-fov-val') as HTMLSpanElement;
     this.pbrWireframe = document.getElementById('pbr-wireframe') as HTMLInputElement;
+    this.pbrOrtho = document.getElementById('pbr-ortho') as HTMLInputElement;
+    this.pbrVerticalCorrection = document.getElementById('pbr-vertical-correction') as HTMLInputElement;
+    this.pbrCameraHeight = document.getElementById('pbr-camera-height') as HTMLInputElement;
+    this.pbrCameraHeightVal = document.getElementById('pbr-camera-height-val') as HTMLSpanElement;
+    this.pbrLensShiftY = document.getElementById('pbr-lens-shift-y') as HTMLInputElement;
+    this.pbrLensShiftYVal = document.getElementById('pbr-lens-shift-y-val') as HTMLSpanElement;
 
     this.bindEvents();
     this.onFractalChange();
@@ -120,6 +152,7 @@ export class Controls {
     this.gradDir.addEventListener('change', () => this.notify());
     this.textureFile.addEventListener('change', () => this.onTextureChange());
     this.exportBtn.addEventListener('click', () => this.callbacks.onExport());
+    this.presetBtn.addEventListener('click', () => this.callbacks.onPresetSave());
 
     // PBR スライダー
     const pbrSliders: Array<[HTMLInputElement, HTMLSpanElement]> = [
@@ -129,6 +162,7 @@ export class Controls {
       [this.pbrClearcoatRough, this.pbrClearcoatRoughVal],
       [this.pbrIridescence, this.pbrIridescenceVal],
       [this.pbrLight, this.pbrLightVal],
+      [this.pbrEnv, this.pbrEnvVal],
     ];
     for (const [slider, display] of pbrSliders) {
       slider.addEventListener('input', () => {
@@ -136,7 +170,34 @@ export class Controls {
         this.notify();
       });
     }
+    // 角度スライダー（整数 + °表示）
+    const pbrDegreeSliders: Array<[HTMLInputElement, HTMLSpanElement]> = [
+      [this.pbrLightAz, this.pbrLightAzVal],
+      [this.pbrLightEl, this.pbrLightElVal],
+      [this.pbrFov, this.pbrFovVal],
+    ];
+    for (const [slider, display] of pbrDegreeSliders) {
+      slider.addEventListener('input', () => {
+        display.textContent = `${Math.round(Number(slider.value))}°`;
+        this.notify();
+      });
+    }
+    this.pbrLensShiftY.addEventListener('input', () => {
+      this.pbrLensShiftYVal.textContent = Number(this.pbrLensShiftY.value).toFixed(2);
+      this.notify();
+    });
+    this.pbrCameraHeight.addEventListener('input', () => {
+      this.pbrCameraHeightVal.textContent = Number(this.pbrCameraHeight.value).toFixed(2);
+      this.notify();
+    });
     this.pbrWireframe.addEventListener('change', () => this.notify());
+    this.pbrOrtho.addEventListener('change', () => this.notify());
+    this.pbrVerticalCorrection.addEventListener('change', () => {
+      if (this.pbrVerticalCorrection.checked) {
+        this.setCameraHeight(this.callbacks.getCameraHeight());
+      }
+      this.notify();
+    });
   }
 
   private onFractalChange(): void {
@@ -225,11 +286,70 @@ export class Controls {
     this.exportBtn.textContent = exporting ? '書き出し中...' : 'PNG 書き出し ↓';
   }
 
+  /** プリセット JSON を UI に反映する */
+  loadPreset(preset: PresetV1): void {
+    // fractalId
+    this.fractalSelect.value = preset.fractalId;
+    this.onFractalChange();
+
+    // depth
+    this.depthSlider.value = String(preset.depth);
+    this.depthValue.textContent = String(preset.depth);
+
+    // color
+    const modeRadio = document.querySelector<HTMLInputElement>(
+      `input[name="color-mode"][value="${preset.color.mode}"]`
+    );
+    if (modeRadio) modeRadio.checked = true;
+    this.solidColor.value = preset.color.solidColor;
+    this.gradStart.value = preset.color.gradStart;
+    this.gradEnd.value = preset.color.gradEnd;
+    this.gradDir.value = preset.color.gradDir;
+    this.onColorModeChange();
+
+    // PBR
+    if (preset.pbr) {
+      this.pbrMetalness.value = String(preset.pbr.metalness);
+      this.pbrMetalnessVal.textContent = preset.pbr.metalness.toFixed(2);
+      this.pbrRoughness.value = String(preset.pbr.roughness);
+      this.pbrRoughnessVal.textContent = preset.pbr.roughness.toFixed(2);
+      this.pbrClearcoat.value = String(preset.pbr.clearcoat);
+      this.pbrClearcoatVal.textContent = preset.pbr.clearcoat.toFixed(2);
+      this.pbrClearcoatRough.value = String(preset.pbr.clearcoatRoughness);
+      this.pbrClearcoatRoughVal.textContent = preset.pbr.clearcoatRoughness.toFixed(2);
+      this.pbrIridescence.value = String(preset.pbr.iridescence);
+      this.pbrIridescenceVal.textContent = preset.pbr.iridescence.toFixed(2);
+      this.pbrLight.value = String(preset.pbr.lightIntensity);
+      this.pbrLightVal.textContent = preset.pbr.lightIntensity.toFixed(2);
+      this.pbrLightAz.value = String(preset.pbr.lightAzimuth);
+      this.pbrLightAzVal.textContent = `${Math.round(preset.pbr.lightAzimuth)}°`;
+      this.pbrLightEl.value = String(preset.pbr.lightElevation);
+      this.pbrLightElVal.textContent = `${Math.round(preset.pbr.lightElevation)}°`;
+      this.pbrEnv.value = String(preset.pbr.envIntensity);
+      this.pbrEnvVal.textContent = preset.pbr.envIntensity.toFixed(2);
+      this.pbrFov.value = String(preset.pbr.fov);
+      this.pbrFovVal.textContent = `${Math.round(preset.pbr.fov)}°`;
+      this.pbrWireframe.checked = preset.pbr.wireframe;
+      this.pbrOrtho.checked = preset.pbr.orthographic ?? false;
+      this.pbrVerticalCorrection.checked = preset.pbr.verticalCorrection ?? false;
+      this.setCameraHeight(preset.pbr.cameraHeight ?? 2);
+      this.pbrLensShiftY.value = String(preset.pbr.lensShiftY ?? 0);
+      this.pbrLensShiftYVal.textContent = (preset.pbr.lensShiftY ?? 0).toFixed(2);
+    }
+
+    this.notify();
+  }
+
   private getColorMode(): ColorMode {
     for (const r of this.colorModeRadios) {
       if (r.checked) return r.value as ColorMode;
     }
     return 'solid';
+  }
+
+  private setCameraHeight(value: number): void {
+    this.pbrCameraHeight.value = String(value);
+    this.pbrCameraHeightVal.textContent = value.toFixed(2);
   }
 
   getState(): UIState {
@@ -248,7 +368,15 @@ export class Controls {
       clearcoatRoughness: Number(this.pbrClearcoatRough.value),
       iridescence: Number(this.pbrIridescence.value),
       lightIntensity: Number(this.pbrLight.value),
+      lightAzimuth: Number(this.pbrLightAz.value),
+      lightElevation: Number(this.pbrLightEl.value),
+      envIntensity: Number(this.pbrEnv.value),
+      fov: Number(this.pbrFov.value),
       wireframe: this.pbrWireframe.checked,
+      orthographic: this.pbrOrtho.checked,
+      verticalCorrection: this.pbrVerticalCorrection.checked,
+      cameraHeight: Number(this.pbrCameraHeight.value),
+      lensShiftY: Number(this.pbrLensShiftY.value),
     };
     return {
       fractalId: this.fractalSelect.value,
@@ -261,6 +389,6 @@ export class Controls {
   }
 
   private notify(): void {
-    this.callbacks.onChange(this.getState());
+    this.callbacks.onChange.call(this, this.getState());
   }
 }

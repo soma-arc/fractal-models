@@ -57,9 +57,13 @@ function getColor(
   return lerpColor3(c1, c2, Math.max(0, Math.min(1, t)));
 }
 
+// 各リーフキューブ: CUBE_TRIS.length(12) × 3頂点 × 3値 = 108 floats
+const FLOATS_PER_CUBE = CUBE_TRIS.length * 3 * 3;
+
 function pushCube(
-  positions: number[],
-  colors: number[],
+  positions: Float32Array,
+  colors: Float32Array,
+  cur: { i: number },
   cx: number, cy: number, cz: number,
   size: number,
   depth: number,
@@ -72,9 +76,14 @@ function pushCube(
       const wx = cx + v[0] * size;
       const wy = cy + v[1] * size;
       const wz = cz + v[2] * size;
-      positions.push(wx, wy, wz);
+      positions[cur.i] = wx;
+      positions[cur.i + 1] = wy;
+      positions[cur.i + 2] = wz;
       const col = getColor([wx, wy, wz], depth, maxDepth, color, bounds);
-      colors.push(col[0], col[1], col[2]);
+      colors[cur.i] = col[0];
+      colors[cur.i + 1] = col[1];
+      colors[cur.i + 2] = col[2];
+      cur.i += 3;
     }
   }
 }
@@ -86,20 +95,20 @@ function recurse(
   maxDepth: number,
   color: ColorParams,
   bounds: { minY: number; maxY: number; minX: number; maxX: number },
-  positions: number[],
-  colors: number[],
+  positions: Float32Array,
+  colors: Float32Array,
+  cur: { i: number },
 ): void {
   if (depth === maxDepth) {
-    pushCube(positions, colors, cx, cy, cz, size, depth, maxDepth, color, bounds);
+    pushCube(positions, colors, cur, cx, cy, cz, size, depth, maxDepth, color, bounds);
     return;
   }
 
   const s = size / 3;
-  // 27マスのうち、各軸で中央になる7マスを除去（メンガースポンジ）
+  // 27マスのうち、2軸以上が中央(=1)になる7マスを除去（メンガースポンジ）
   for (let ix = 0; ix < 3; ix++) {
     for (let iy = 0; iy < 3; iy++) {
       for (let iz = 0; iz < 3; iz++) {
-        // 2軸以上が中央(=1)になるセルは穴
         const mid = (ix === 1 ? 1 : 0) + (iy === 1 ? 1 : 0) + (iz === 1 ? 1 : 0);
         if (mid >= 2) continue;
         recurse(
@@ -113,6 +122,7 @@ function recurse(
           bounds,
           positions,
           colors,
+          cur,
         );
       }
     }
@@ -122,7 +132,7 @@ function recurse(
 export const menger: Fractal3D = {
   id: 'menger',
   label: 'メンガースポンジ（3D）',
-  maxDepth: 4,
+  maxDepth: 10,
 
   build(params: FractalParams): Fractal3DGeometry {
     const SIZE = 2;
@@ -132,14 +142,15 @@ export const menger: Fractal3D = {
       minX: OFFSET, maxX: OFFSET + SIZE,
     };
 
-    const positions: number[] = [];
-    const colors: number[] = [];
+    // リーフキューブ数 = 20^depth（中間配列を経由しない事前確保）
+    const leafCount = Math.pow(20, params.depth);
+    const totalFloats = leafCount * FLOATS_PER_CUBE;
+    const positions = new Float32Array(totalFloats);
+    const colors = new Float32Array(totalFloats);
+    const cur = { i: 0 };
 
-    recurse(OFFSET, OFFSET, OFFSET, SIZE, 0, params.depth, params.color, bounds, positions, colors);
+    recurse(OFFSET, OFFSET, OFFSET, SIZE, 0, params.depth, params.color, bounds, positions, colors, cur);
 
-    return {
-      positions: new Float32Array(positions),
-      colors: new Float32Array(colors),
-    };
+    return { positions, colors };
   },
 };

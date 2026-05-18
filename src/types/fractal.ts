@@ -18,6 +18,14 @@ export interface PbrParams {
   iridescence: number;
   wireframe: boolean;
   lightIntensity: number;
+  lightAzimuth: number;
+  lightElevation: number;
+  envIntensity: number;
+  fov: number;
+  orthographic: boolean;
+  verticalCorrection: boolean;
+  cameraHeight: number;
+  lensShiftY: number;
 }
 
 export interface FractalParams {
@@ -49,3 +57,29 @@ export interface Fractal3D {
 export type FractalEntry =
   | { kind: '2d'; fractal: Fractal2D }
   | { kind: '3d'; fractal: Fractal3D };
+
+// ---------- プリセット ----------
+
+export interface PresetColorParams {
+  mode: Exclude<ColorMode, 'texture'>; // texture は保存対象外
+  solidColor: string;
+  gradStart: string;
+  gradEnd: string;
+  gradDir: GradientDirection;
+}
+
+export interface PresetCameraParams {
+  position: [number, number, number];
+  target: [number, number, number];
+  fov: number;
+  orthographic?: boolean; // 省略時は透視投影
+}
+
+export interface PresetV1 {
+  version: 1;
+  fractalId: string;
+  depth: number;
+  color: PresetColorParams;
+  pbr?: PbrParams;          // 3D のみ
+  camera?: PresetCameraParams; // 3D のみ
+}
