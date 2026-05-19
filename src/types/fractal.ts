@@ -1,4 +1,4 @@
-export type ColorMode = 'solid' | 'gradient' | 'texture';
+export type ColorMode = 'solid' | 'gradient' | 'tetra4' | 'texture';
 export type GradientDirection = 'depth' | 'vertical' | 'horizontal';
 
 export interface ColorParams {
@@ -7,6 +7,10 @@ export interface ColorParams {
   gradStart: string;
   gradEnd: string;
   gradDir: GradientDirection;
+  tetraTop: string;
+  tetraLeft: string;
+  tetraRight: string;
+  tetraBack: string;
   textureImage: HTMLImageElement | null;
 }
 
@@ -66,6 +70,10 @@ export interface PresetColorParams {
   gradStart: string;
   gradEnd: string;
   gradDir: GradientDirection;
+  tetraTop: string;
+  tetraLeft: string;
+  tetraRight: string;
+  tetraBack: string;
 }
 
 export interface PresetCameraParams {

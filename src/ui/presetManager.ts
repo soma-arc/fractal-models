@@ -23,6 +23,13 @@ const DEFAULT_PBR: PbrParams = {
   lensShiftY: 0,
 };
 
+const DEFAULT_TETRA_COLORS = {
+  tetraTop: '#f94144',
+  tetraLeft: '#43aa8b',
+  tetraRight: '#577590',
+  tetraBack: '#f9c74f',
+};
+
 // ---------- 書き出し ----------
 
 export function exportPreset(
@@ -41,6 +48,10 @@ export function exportPreset(
     gradStart: params.color.gradStart,
     gradEnd: params.color.gradEnd,
     gradDir: params.color.gradDir,
+    tetraTop: params.color.tetraTop,
+    tetraLeft: params.color.tetraLeft,
+    tetraRight: params.color.tetraRight,
+    tetraBack: params.color.tetraBack,
   };
 
   const preset: PresetV1 = {
@@ -119,6 +130,10 @@ export function parsePreset(json: string): ImportResult {
   if (textureWarning) {
     preset.color.mode = 'solid';
   }
+  preset.color = {
+    ...DEFAULT_TETRA_COLORS,
+    ...preset.color,
+  };
   if (preset.pbr) {
     preset.pbr = {
       ...DEFAULT_PBR,

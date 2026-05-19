@@ -46,10 +46,16 @@ export class Controls {
   private gradientRow: HTMLDivElement;
   private textureRow: HTMLDivElement;
   private textureRadioLabel: HTMLLabelElement;
+  private tetra4Row: HTMLDivElement;
+  private tetra4RadioLabel: HTMLLabelElement;
   private solidColor: HTMLInputElement;
   private gradStart: HTMLInputElement;
   private gradEnd: HTMLInputElement;
   private gradDir: HTMLSelectElement;
+  private tetraTop: HTMLInputElement;
+  private tetraLeft: HTMLInputElement;
+  private tetraRight: HTMLInputElement;
+  private tetraBack: HTMLInputElement;
   private textureFile: HTMLInputElement;
   private errorMsg: HTMLDivElement;
   private exportBtn: HTMLButtonElement;
@@ -100,10 +106,16 @@ export class Controls {
     this.gradientRow = document.getElementById('gradient-row') as HTMLDivElement;
     this.textureRow = document.getElementById('texture-row') as HTMLDivElement;
     this.textureRadioLabel = document.getElementById('texture-radio-label') as HTMLLabelElement;
+    this.tetra4Row = document.getElementById('tetra4-row') as HTMLDivElement;
+    this.tetra4RadioLabel = document.getElementById('tetra4-radio-label') as HTMLLabelElement;
     this.solidColor = document.getElementById('solid-color') as HTMLInputElement;
     this.gradStart = document.getElementById('grad-start') as HTMLInputElement;
     this.gradEnd = document.getElementById('grad-end') as HTMLInputElement;
     this.gradDir = document.getElementById('grad-dir') as HTMLSelectElement;
+    this.tetraTop = document.getElementById('tetra-top') as HTMLInputElement;
+    this.tetraLeft = document.getElementById('tetra-left') as HTMLInputElement;
+    this.tetraRight = document.getElementById('tetra-right') as HTMLInputElement;
+    this.tetraBack = document.getElementById('tetra-back') as HTMLInputElement;
     this.textureFile = document.getElementById('texture-file') as HTMLInputElement;
     this.errorMsg = document.getElementById('error-msg') as HTMLDivElement;
     this.exportBtn = document.getElementById('export-btn') as HTMLButtonElement;
@@ -150,6 +162,10 @@ export class Controls {
     this.gradStart.addEventListener('input', () => this.notify());
     this.gradEnd.addEventListener('input', () => this.notify());
     this.gradDir.addEventListener('change', () => this.notify());
+    this.tetraTop.addEventListener('input', () => this.notify());
+    this.tetraLeft.addEventListener('input', () => this.notify());
+    this.tetraRight.addEventListener('input', () => this.notify());
+    this.tetraBack.addEventListener('input', () => this.notify());
     this.textureFile.addEventListener('change', () => this.onTextureChange());
     this.exportBtn.addEventListener('click', () => this.callbacks.onExport());
     this.presetBtn.addEventListener('click', () => this.callbacks.onPresetSave());
@@ -204,6 +220,7 @@ export class Controls {
     const id = this.fractalSelect.value;
     const maxDepth = FRACTAL_MAX_DEPTHS[id] ?? 8;
     const is2D = IS_2D_FRACTAL[id] ?? true;
+    const supportsTetra4 = id === 'sierpinski3d';
 
     this.depthSlider.max = String(maxDepth);
     if (Number(this.depthSlider.value) > maxDepth) {
@@ -212,8 +229,12 @@ export class Controls {
 
     // テクスチャはら2Dのみ
     this.textureRadioLabel.style.display = is2D ? '' : 'none';
+    this.tetra4RadioLabel.style.display = supportsTetra4 ? '' : 'none';
     const currentMode = this.getColorMode();
     if (!is2D && currentMode === 'texture') {
+      (document.querySelector<HTMLInputElement>('input[name="color-mode"][value="solid"]'))!.checked = true;
+    }
+    if (!supportsTetra4 && currentMode === 'tetra4') {
       (document.querySelector<HTMLInputElement>('input[name="color-mode"][value="solid"]'))!.checked = true;
     }
 
@@ -237,6 +258,7 @@ export class Controls {
     const mode = this.getColorMode();
     this.solidRow.style.display = mode === 'solid' ? '' : 'none';
     this.gradientRow.style.display = mode === 'gradient' ? '' : 'none';
+    this.tetra4Row.style.display = mode === 'tetra4' ? '' : 'none';
     this.textureRow.style.display = mode === 'texture' ? '' : 'none';
     this.notify();
   }
@@ -301,10 +323,17 @@ export class Controls {
       `input[name="color-mode"][value="${preset.color.mode}"]`
     );
     if (modeRadio) modeRadio.checked = true;
+    if (preset.color.mode === 'tetra4' && preset.fractalId !== 'sierpinski3d') {
+      (document.querySelector<HTMLInputElement>('input[name="color-mode"][value="solid"]'))!.checked = true;
+    }
     this.solidColor.value = preset.color.solidColor;
     this.gradStart.value = preset.color.gradStart;
     this.gradEnd.value = preset.color.gradEnd;
     this.gradDir.value = preset.color.gradDir;
+    this.tetraTop.value = preset.color.tetraTop ?? '#f94144';
+    this.tetraLeft.value = preset.color.tetraLeft ?? '#43aa8b';
+    this.tetraRight.value = preset.color.tetraRight ?? '#577590';
+    this.tetraBack.value = preset.color.tetraBack ?? '#f9c74f';
     this.onColorModeChange();
 
     // PBR
@@ -359,6 +388,10 @@ export class Controls {
       gradStart: this.gradStart.value,
       gradEnd: this.gradEnd.value,
       gradDir: this.gradDir.value as GradientDirection,
+      tetraTop: this.tetraTop.value,
+      tetraLeft: this.tetraLeft.value,
+      tetraRight: this.tetraRight.value,
+      tetraBack: this.tetraBack.value,
       textureImage: this.currentTextureImage,
     };
     const pbrParams: PbrParams = {

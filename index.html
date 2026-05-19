@@ -210,6 +210,7 @@
         <div class="radio-group">
           <label><input type="radio" name="color-mode" value="solid" checked /> 単色</label>
           <label><input type="radio" name="color-mode" value="gradient" /> グラデーション</label>
+          <label id="tetra4-radio-label"><input type="radio" name="color-mode" value="tetra4" /> 4点グラデ</label>
           <label id="texture-radio-label"><input type="radio" name="color-mode" value="texture" /> テクスチャ</label>
         </div>
       </div>
@@ -232,6 +233,18 @@
           <option value="vertical">上下</option>
           <option value="horizontal">左右</option>
         </select>
+      </div>
+
+      <!-- 4点グラデーション（シェルピンスキー四面体用） -->
+      <div class="control-row" id="tetra4-row" style="display:none">
+        <label for="tetra-top">上</label>
+        <input type="color" id="tetra-top" value="#f94144" />
+        <label for="tetra-left">左下</label>
+        <input type="color" id="tetra-left" value="#43aa8b" />
+        <label for="tetra-right">右下</label>
+        <input type="color" id="tetra-right" value="#577590" />
+        <label for="tetra-back">奥</label>
+        <input type="color" id="tetra-back" value="#f9c74f" />
       </div>
 
       <!-- テクスチャ -->
