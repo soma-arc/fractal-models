@@ -1,8 +1,13 @@
-import type { Fractal3D, Fractal3DGeometry, FractalParams, ColorParams } from '../types/fractal.ts';
+import type {
+  Fractal3D,
+  Fractal3DGeometry,
+  FractalParams,
+  ColorParams,
+  Koch3DMode,
+} from '../types/fractal.ts';
 
 type Vec3 = [number, number, number];
 
-// ---- ベクトル演算 ----
 function add3(a: Vec3, b: Vec3): Vec3 { return [a[0]+b[0], a[1]+b[1], a[2]+b[2]]; }
 function sub3(a: Vec3, b: Vec3): Vec3 { return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
 function scale3(a: Vec3, s: number): Vec3 { return [a[0]*s, a[1]*s, a[2]*s]; }
@@ -27,15 +32,6 @@ function rot3(a: Vec3, u: Vec3, t: number): Vec3 {
   ];
 }
 
-// 参考実装 koch3d.js の trans 関数と同等
-function trans(base: Vec3, centert: Vec3, coordt: Vec3[]): Vec3[] {
-  const axis = sub3(centert, base);
-  return coordt.map(v => {
-    const pos = sub3(v, base);
-    return add3(base, scale3(rot3(pos, axis, Math.PI/2), 2/3));
-  });
-}
-
 // 正三角形ベースの二重四面体の頂点 (参考実装 coord0 に対応)
 const s3 = Math.sqrt(3) / 2;
 const t3 = 1 / Math.sqrt(3);
@@ -47,11 +43,43 @@ const COORD0: Vec3[] = [
   [0, 0, t3],
 ];
 
-// 面インデックス (参考実装 coordIndex0 に対応)
+const SKEW_COORD0: Vec3[] = [
+  [0.12, -0.06, -t3 * 0.72],
+  [0, 1, 0],
+  [s3, -0.5, 0],
+  [-s3, -0.5, 0],
+  [-0.08, 0.04, t3 * 1.22],
+];
+
 const FACE0: Array<[number, number, number]> = [
   [0,1,2], [0,2,3], [0,3,1],
   [4,2,1], [4,3,2], [4,1,3],
 ];
+
+const ASYMMETRIC_FACE0: Array<[number, number, number]> = [
+  [0,1,2], [0,2,3], [0,3,1],
+  [4,2,1], [4,1,3],
+];
+
+const VALID_MODES = new Set<Koch3DMode>([
+  'classic',
+  'skew-bipyramid',
+  'skew-mirror',
+  'asymmetric-faces',
+]);
+
+function getKoch3DMode(params: FractalParams): Koch3DMode {
+  const mode = params.koch3d?.mode;
+  return mode && VALID_MODES.has(mode) ? mode : 'classic';
+}
+
+function trans(base: Vec3, centert: Vec3, coordt: Vec3[], angle: number): Vec3[] {
+  const axis = sub3(centert, base);
+  return coordt.map(v => {
+    const pos = sub3(v, base);
+    return add3(base, scale3(rot3(pos, axis, angle), 2/3));
+  });
+}
 
 function hexToRgb(hex: string): Vec3 {
   return [
@@ -87,30 +115,112 @@ function getColor(
   return lerpColor3(c1, c2, Math.max(0, Math.min(1, t)));
 }
 
-function recurse(
+interface Replacement {
+  anchorIndex: number;
+  angle: number;
+}
+
+interface KochRule {
+  coord: Vec3[];
+  face: Array<[number, number, number]>;
+  replacements: Replacement[];
+  bounds: { minY: number; maxY: number; minX: number; maxX: number };
+}
+
+function getKochRule(mode: Koch3DMode): KochRule {
+  const right = Math.PI / 2;
+  const left = -Math.PI / 2;
+  const classicReplacements = [
+    { anchorIndex: 1, angle: right },
+    { anchorIndex: 2, angle: right },
+    { anchorIndex: 3, angle: right },
+  ];
+  const bounds = { minY: -0.5, maxY: 1, minX: -s3, maxX: s3 };
+
+  if (mode === 'skew-bipyramid') {
+    return {
+      coord: SKEW_COORD0,
+      face: FACE0,
+      replacements: classicReplacements,
+      bounds,
+    };
+  }
+
+  if (mode === 'skew-mirror') {
+    return {
+      coord: SKEW_COORD0,
+      face: FACE0,
+      replacements: [
+        { anchorIndex: 1, angle: right },
+        { anchorIndex: 2, angle: left },
+        { anchorIndex: 3, angle: right },
+      ],
+      bounds,
+    };
+  }
+
+  if (mode === 'asymmetric-faces') {
+    return {
+      coord: COORD0,
+      face: ASYMMETRIC_FACE0,
+      replacements: classicReplacements,
+      bounds,
+    };
+  }
+
+  return {
+    coord: COORD0,
+    face: FACE0,
+    replacements: classicReplacements,
+    bounds,
+  };
+}
+
+function emitShape(
   coordt: Vec3[],
-  depth: number,
+  face: Array<[number, number, number]>,
+  emittedDepth: number,
   maxDepth: number,
   color: ColorParams,
   bounds: { minY: number; maxY: number; minX: number; maxX: number },
   positions: number[],
   colors: number[],
 ): void {
-  if (depth === 0) {
-    for (const [i0, i1, i2] of FACE0) {
-      for (const v of [coordt[i0], coordt[i1], coordt[i2]]) {
-        positions.push(v[0], v[1], v[2]);
-        const col = getColor(v, maxDepth - depth, maxDepth, color, bounds);
-        colors.push(col[0], col[1], col[2]);
-      }
+  for (const [i0, i1, i2] of face) {
+    for (const v of [coordt[i0], coordt[i1], coordt[i2]]) {
+      positions.push(v[0], v[1], v[2]);
+      const col = getColor(v, emittedDepth, maxDepth, color, bounds);
+      colors.push(col[0], col[1], col[2]);
     }
+  }
+}
+
+function recurse(
+  coordt: Vec3[],
+  rule: KochRule,
+  depth: number,
+  maxDepth: number,
+  color: ColorParams,
+  positions: number[],
+  colors: number[],
+): void {
+  if (depth === 0) {
+    emitShape(coordt, rule.face, maxDepth - depth, maxDepth, color, rule.bounds, positions, colors);
     return;
   }
 
   const ct = center3(coordt);
-  recurse(trans(coordt[1], ct, coordt), depth-1, maxDepth, color, bounds, positions, colors);
-  recurse(trans(coordt[2], ct, coordt), depth-1, maxDepth, color, bounds, positions, colors);
-  recurse(trans(coordt[3], ct, coordt), depth-1, maxDepth, color, bounds, positions, colors);
+  for (const replacement of rule.replacements) {
+    recurse(
+      trans(coordt[replacement.anchorIndex], ct, coordt, replacement.angle),
+      rule,
+      depth-1,
+      maxDepth,
+      color,
+      positions,
+      colors,
+    );
+  }
 }
 
 export const koch3d: Fractal3D = {
@@ -119,11 +229,11 @@ export const koch3d: Fractal3D = {
   maxDepth: 10,
 
   build(params: FractalParams): Fractal3DGeometry {
-    const bounds = { minY: -0.5, maxY: 1, minX: -s3, maxX: s3 };
+    const rule = getKochRule(getKoch3DMode(params));
     const positions: number[] = [];
     const colors: number[] = [];
 
-    recurse(COORD0, params.depth, params.depth, params.color, bounds, positions, colors);
+    recurse(rule.coord, rule, params.depth, params.depth, params.color, positions, colors);
 
     return {
       positions: new Float32Array(positions),

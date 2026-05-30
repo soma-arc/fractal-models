@@ -32,10 +32,21 @@ export interface PbrParams {
   lensShiftY: number;
 }
 
+export type Koch3DMode =
+  | 'classic'
+  | 'skew-bipyramid'
+  | 'skew-mirror'
+  | 'asymmetric-faces';
+
+export interface Koch3DParams {
+  mode: Koch3DMode;
+}
+
 export interface FractalParams {
   depth: number;
   color: ColorParams;
   pbr: PbrParams;
+  koch3d?: Koch3DParams;
 }
 
 export interface Fractal2D {
@@ -89,5 +100,6 @@ export interface PresetV1 {
   depth: number;
   color: PresetColorParams;
   pbr?: PbrParams;          // 3D のみ
+  koch3d?: Koch3DParams;    // Koch 3D のみ
   camera?: PresetCameraParams; // 3D のみ
 }

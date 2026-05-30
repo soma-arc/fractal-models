@@ -1,4 +1,13 @@
-import type { ColorMode, ColorParams, FractalParams, GradientDirection, PbrParams, PresetV1 } from '../types/fractal.ts';
+import type {
+  ColorMode,
+  ColorParams,
+  FractalParams,
+  GradientDirection,
+  Koch3DMode,
+  Koch3DParams,
+  PbrParams,
+  PresetV1,
+} from '../types/fractal.ts';
 
 export interface UIState {
   fractalId: string;
@@ -17,6 +26,7 @@ const FRACTAL_MAX_DEPTHS: Record<string, number> = {
   koch2d: 20,
   sierpinski3d: 10,
   menger: 10,
+  'menger-raymarch': 10,
   koch3d: 10,
 };
 
@@ -25,6 +35,7 @@ const FRACTAL_WARN_DEPTHS: Record<string, number> = {
   koch2d: 16,
   sierpinski3d: 999,
   menger: 999,
+  'menger-raymarch': 999,
   koch3d: 999,
 };
 
@@ -33,14 +44,19 @@ const IS_2D_FRACTAL: Record<string, boolean> = {
   koch2d: true,
   sierpinski3d: false,
   menger: false,
+  'menger-raymarch': false,
   koch3d: false,
 };
+
+const KOCH3D_MODES = new Set<Koch3DMode>(['classic', 'skew-bipyramid', 'skew-mirror', 'asymmetric-faces']);
 
 export class Controls {
   private fractalSelect: HTMLSelectElement;
   private depthSlider: HTMLInputElement;
   private depthValue: HTMLSpanElement;
   private warningMsg: HTMLDivElement;
+  private koch3dSection: HTMLDivElement;
+  private koch3dMode: HTMLSelectElement;
   private colorModeRadios: NodeListOf<HTMLInputElement>;
   private solidRow: HTMLDivElement;
   private gradientRow: HTMLDivElement;
@@ -101,6 +117,8 @@ export class Controls {
     this.depthSlider = document.getElementById('depth-slider') as HTMLInputElement;
     this.depthValue = document.getElementById('depth-value') as HTMLSpanElement;
     this.warningMsg = document.getElementById('warning-msg') as HTMLDivElement;
+    this.koch3dSection = document.getElementById('koch3d-section') as HTMLDivElement;
+    this.koch3dMode = document.getElementById('koch3d-mode') as HTMLSelectElement;
     this.colorModeRadios = document.querySelectorAll<HTMLInputElement>('input[name="color-mode"]');
     this.solidRow = document.getElementById('solid-row') as HTMLDivElement;
     this.gradientRow = document.getElementById('gradient-row') as HTMLDivElement;
@@ -157,6 +175,7 @@ export class Controls {
   private bindEvents(): void {
     this.fractalSelect.addEventListener('change', () => this.onFractalChange());
     this.depthSlider.addEventListener('input', () => this.onDepthChange());
+    this.koch3dMode.addEventListener('change', () => this.notify());
     this.colorModeRadios.forEach(r => r.addEventListener('change', () => this.onColorModeChange()));
     this.solidColor.addEventListener('input', () => this.notify());
     this.gradStart.addEventListener('input', () => this.notify());
@@ -240,9 +259,16 @@ export class Controls {
 
     // PBR は 3D のみ
     this.pbrSection.style.display = is2D ? 'none' : 'block';
+    this.koch3dSection.style.display = id === 'koch3d' ? '' : 'none';
 
     this.onDepthChange();
     this.onColorModeChange();
+  }
+
+  private setKoch3DParams(params: Koch3DParams | undefined): void {
+    const rawMode = params?.mode;
+    const mode: Koch3DMode = rawMode && KOCH3D_MODES.has(rawMode) ? rawMode : 'classic';
+    this.koch3dMode.value = mode;
   }
 
   private onDepthChange(): void {
@@ -365,6 +391,7 @@ export class Controls {
       this.pbrLensShiftY.value = String(preset.pbr.lensShiftY ?? 0);
       this.pbrLensShiftYVal.textContent = (preset.pbr.lensShiftY ?? 0).toFixed(2);
     }
+    this.setKoch3DParams(preset.koch3d);
 
     this.notify();
   }
@@ -379,6 +406,14 @@ export class Controls {
   private setCameraHeight(value: number): void {
     this.pbrCameraHeight.value = String(value);
     this.pbrCameraHeightVal.textContent = value.toFixed(2);
+  }
+
+  private getKoch3DParams(): Koch3DParams {
+    const rawMode = this.koch3dMode.value as Koch3DMode;
+    const mode: Koch3DMode = rawMode && KOCH3D_MODES.has(rawMode) ? rawMode : 'classic';
+    return {
+      mode,
+    };
   }
 
   getState(): UIState {
@@ -417,6 +452,7 @@ export class Controls {
         depth: Number(this.depthSlider.value),
         color: colorParams,
         pbr: pbrParams,
+        koch3d: this.getKoch3DParams(),
       },
     };
   }

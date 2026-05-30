@@ -192,6 +192,7 @@
           <option value="koch2d">コッホ曲線（2D）</option>
           <option value="sierpinski3d">シェルピンスキーの四面体（3D）</option>
           <option value="menger">メンガースポンジ（3D）</option>
+          <option value="menger-raymarch">メンガースポンジ（レイマーチ）</option>
           <option value="koch3d">コッホ曲線 三次元版（3D）</option>
         </select>
       </div>
@@ -203,6 +204,19 @@
         <span id="depth-value">4</span>
       </div>
       <div id="warning-msg">⚠ 深さが大きいとブラウザがフリーズする可能性があります</div>
+
+      <!-- Koch 3D 置き換えルール -->
+      <div id="koch3d-section" style="display:none">
+        <div class="control-row">
+          <label for="koch3d-mode">Koch3Dルール</label>
+          <select id="koch3d-mode">
+            <option value="classic">Classic</option>
+            <option value="skew-bipyramid">非対称三角両錐</option>
+            <option value="skew-mirror">非対称ミラー</option>
+            <option value="asymmetric-faces">非対称面</option>
+          </select>
+        </div>
+      </div>
 
       <!-- 色モード -->
       <div class="control-row">

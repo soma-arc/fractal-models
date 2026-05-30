@@ -5,6 +5,7 @@ import { sierpinski2d } from './fractals/sierpinski2d.ts';
 import { koch2d } from './fractals/koch2d.ts';
 import { sierpinski3d } from './fractals/sierpinski3d.ts';
 import { menger } from './fractals/menger.ts';
+import { mengerRaymarch } from './fractals/mengerRaymarch.ts';
 import { koch3d } from './fractals/koch3d.ts';
 import type { FractalEntry } from './types/fractal.ts';
 import { exportPreset, parsePreset } from './ui/presetManager.ts';
@@ -14,6 +15,7 @@ const FRACTALS: Record<string, FractalEntry> = {
   koch2d:       { kind: '2d', fractal: koch2d },
   sierpinski3d: { kind: '3d', fractal: sierpinski3d },
   menger:       { kind: '3d', fractal: menger },
+  'menger-raymarch': { kind: '3d', fractal: mengerRaymarch },
   koch3d:       { kind: '3d', fractal: koch3d },
 };
 

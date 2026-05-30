@@ -1,4 +1,4 @@
-import type { PbrParams, PresetV1, PresetColorParams } from '../types/fractal.ts';
+import type { Koch3DMode, Koch3DParams, PbrParams, PresetV1, PresetColorParams } from '../types/fractal.ts';
 import type { UIState } from './controls.ts';
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { PerspectiveCamera } from 'three';
@@ -29,6 +29,19 @@ const DEFAULT_TETRA_COLORS = {
   tetraRight: '#577590',
   tetraBack: '#f9c74f',
 };
+
+const DEFAULT_KOCH3D: Koch3DParams = {
+  mode: 'classic',
+};
+
+const KOCH3D_MODES = new Set<Koch3DMode>(['classic', 'skew-bipyramid', 'skew-mirror', 'asymmetric-faces']);
+
+function normalizeKoch3DParams(params: Koch3DParams | undefined): Koch3DParams {
+  const mode = params?.mode;
+  return {
+    mode: mode && KOCH3D_MODES.has(mode) ? mode : DEFAULT_KOCH3D.mode,
+  };
+}
 
 // ---------- 書き出し ----------
 
@@ -63,6 +76,9 @@ export function exportPreset(
 
   if (is3D) {
     preset.pbr = { ...params.pbr };
+    if (fractalId === 'koch3d') {
+      preset.koch3d = normalizeKoch3DParams(params.koch3d);
+    }
     if (camera && controls) {
       preset.camera = {
         position: camera.position.toArray() as [number, number, number],
@@ -142,6 +158,9 @@ export function parsePreset(json: string): ImportResult {
       cameraHeight: preset.pbr.cameraHeight ?? DEFAULT_PBR.cameraHeight,
       lensShiftY: preset.pbr.lensShiftY ?? DEFAULT_PBR.lensShiftY,
     };
+  }
+  if (preset.fractalId === 'koch3d') {
+    preset.koch3d = normalizeKoch3DParams(preset.koch3d);
   }
 
   return { ok: true, preset, textureWarning };
